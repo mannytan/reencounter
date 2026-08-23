@@ -25,11 +25,11 @@ app.get('/dashboard', (req, res) => {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Encounter Dashboard</title>
+  <title>Reencounter Dashboard</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #013220; --surface: #111; --border: #222;
+      --bg: #011f4b; --surface: #111; --border: #222;
       --accent: #4f8ef7; --text: #e8e8e8; --muted: #555;
       --prompt-color: #4f8ef7; --response-color: #ccc;
       --success: #4caf50;
@@ -80,7 +80,7 @@ app.get('/dashboard', (req, res) => {
 </head>
 <body>
   <header>
-    <h1>⬡ ENCOUNTER DASHBOARD</h1>
+    <h1>⬡ REENCOUNTER DASHBOARD</h1>
     <div id="status-dot"></div>
   </header>
   <div id="log">
@@ -157,11 +157,11 @@ app.get('/', (req, res) => {
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-  <title>Encounter Remote</title>
+  <title>Reencounter Remote</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #013220; --surface: #141414; --border: #2a2a2a;
+      --bg: #011f4b; --surface: #141414; --border: #2a2a2a;
       --accent: #4f8ef7; --text: #e8e8e8; --muted: #666;
       --success: #4caf50; --error: #f44336;
     }
@@ -200,8 +200,8 @@ app.get('/', (req, res) => {
 </head>
 <body>
   <div>
-    <h1>⬡ Encounter Remote</h1>
-    <div class="subtitle">workspace: encounter/</div>
+    <h1>⬡ Reencounter Remote</h1>
+    <div class="subtitle">workspace: reencounter/</div>
   </div>
   <textarea id="prompt" placeholder="Describe what you want to change…" autofocus></textarea>
   <button id="run-btn" onclick="runPrompt()">Run</button>
@@ -323,7 +323,7 @@ function getLocalIP() {
 
 app.listen(PORT, '0.0.0.0', () => {
   const ip = getLocalIP();
-  console.log(`\n  Encounter Remote running\n`);
+  console.log(`\n  Reencounter Remote running\n`);
   console.log(`  Phone:     http://${ip}:${PORT}`);
   console.log(`  Dashboard: http://localhost:${PORT}/dashboard\n`);
   console.log(`  Workspace: ${WORKSPACE}\n`);

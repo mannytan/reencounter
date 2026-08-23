@@ -6,7 +6,7 @@ const canvas = document.getElementById('threejs-canvas');
 
 // --- Scene ---
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x013220, 10, 30);
+scene.fog = new THREE.Fog(0x0000ff, 10, 30);
 
 const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
 camera.position.set(3, 2.5, 4);
@@ -14,7 +14,7 @@ camera.position.set(3, 2.5, 4);
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setClearColor(0x013220);
+renderer.setClearColor(0x0000ff);
 
 // --- Controls ---
 const controls = new OrbitControls(camera, renderer.domElement);

@@ -47,6 +47,21 @@ const edgesMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
 const wireframe = new THREE.LineSegments(edgesGeo, edgesMat);
 box.add(wireframe);
 
+// --- Sphere ---
+const sphereGeo = new THREE.SphereGeometry(0.75, 32, 32);
+const sphereMat = new THREE.MeshStandardMaterial({
+  color: 0x1a1a2e,
+  roughness: 0.4,
+  metalness: 0.8,
+});
+const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+sphere.position.x = 2;
+scene.add(sphere);
+
+const sphereEdgesGeo = new THREE.EdgesGeometry(sphereGeo);
+const sphereWireframe = new THREE.LineSegments(sphereEdgesGeo, new THREE.LineBasicMaterial({ color: 0x4f8ef7 }));
+sphere.add(sphereWireframe);
+
 // --- Lighting ---
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 

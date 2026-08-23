@@ -1,0 +1,12 @@
+{
+  "name": "encounter-remote",
+  "version": "1.0.0",
+  "description": "Phone remote control for the encounter workspace",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

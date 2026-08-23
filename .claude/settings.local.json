@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(schedule)",
+      "Bash(npm install:*)",
+      "Bash(timeout 3 node server.js)",
+      "Bash(node server.js)",
+      "Bash(curl -s http://localhost:3030/)",
+      "Bash(xargs kill:*)",
+      "Bash(node /Users/mannytan/Documents/Workspaces/ClaudeWorkspace/encounter/remote/server.js)",
+      "Bash(curl -s -X POST http://localhost:3030/run -H 'Content-Type: application/json' -d '{\"prompt\":\"what files are in the encounter workspace?\"}')",
+      "Bash(gh auth:*)"
+    ]
+  }
+}

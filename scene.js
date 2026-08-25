@@ -54,7 +54,7 @@ const material = new THREE.MeshStandardMaterial({
 });
 const box = new THREE.Mesh(geometry, material);
 box.position.x = 2;
-box.scale.setScalar(0.75);
+box.scale.setScalar(0.25);
 scene.add(box);
 
 const edgesGeo = new THREE.EdgesGeometry(geometry);

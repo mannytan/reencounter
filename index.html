@@ -82,6 +82,33 @@
     const arc = new THREE.LineLoop(arcGeo, arcMat);
     scene.add(arc);
 
+    // --- Debug Text ---
+    const debugCanvas = document.createElement('canvas');
+    debugCanvas.width = 256;
+    debugCanvas.height = 128;
+    const debugCtx = debugCanvas.getContext('2d');
+    debugCtx.font = 'bold 64px monospace';
+    debugCtx.fillStyle = '#ffffff';
+    debugCtx.textAlign = 'center';
+    debugCtx.textBaseline = 'middle';
+    debugCtx.fillText('main', debugCanvas.width / 2, debugCanvas.height / 2);
+
+    const debugTexture = new THREE.CanvasTexture(debugCanvas);
+    const debugPlaneGeo = new THREE.PlaneGeometry(1, 0.5);
+    const debugPlaneMat = new THREE.MeshBasicMaterial({
+      map: debugTexture,
+      transparent: true,
+      side: THREE.DoubleSide,
+    });
+    const debugPlane = new THREE.Mesh(debugPlaneGeo, debugPlaneMat);
+    debugPlane.rotation.x = -Math.PI / 2;
+
+    const debugText = new THREE.Group();
+    debugText.name = 'debug text';
+    debugText.position.set(-2.5, -0.99, 0);
+    debugText.add(debugPlane);
+    scene.add(debugText);
+
     // --- Box ---
     const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
 

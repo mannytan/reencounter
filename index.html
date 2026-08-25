@@ -67,19 +67,19 @@
     scene.add(ground);
 
     // --- Arc ---
-    const totalPoints = 10;
+    const totalPoints = 24;
     const radius = 2;
     const arcPoints = [];
     for (let i = 0; i < totalPoints; i++) {
-      const t = i / (totalPoints - 1);
-      const angle = t * Math.PI;
+      const t = i / totalPoints;
+      const angle = t * Math.PI * 2;
       const x = radius * Math.cos(angle);
       const z = radius * Math.sin(angle);
       arcPoints.push(new THREE.Vector3(x, -1, z));
     }
     const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPoints);
     const arcMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-    const arc = new THREE.Line(arcGeo, arcMat);
+    const arc = new THREE.LineLoop(arcGeo, arcMat);
     scene.add(arc);
 
     // --- Box ---

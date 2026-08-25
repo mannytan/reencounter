@@ -6,7 +6,7 @@
   <title>Three.js Scene</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #013220; overflow: hidden; }
+    body { background: #001233; overflow: hidden; }
     canvas { display: block; }
   </style>
 </head>
@@ -26,7 +26,7 @@
 
     // --- Scene setup ---
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x0a0a0a, 10, 30);
+    scene.fog = new THREE.Fog(0x001233, 10, 30);
 
     const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100);
     camera.position.set(3, 2.5, 4);
@@ -34,7 +34,7 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(innerWidth, innerHeight);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setClearColor(0x013220);
+    renderer.setClearColor(0x001233);
     document.body.appendChild(renderer.domElement);
 
     // --- Controls ---

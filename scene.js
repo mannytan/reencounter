@@ -42,6 +42,7 @@ const groundMat = new THREE.MeshStandardMaterial({
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = -1;
+ground.visible = false;
 scene.add(ground);
 
 // --- Arc ---

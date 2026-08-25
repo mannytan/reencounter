@@ -65,6 +65,22 @@
     ground.position.y = -1;
     scene.add(ground);
 
+    // --- Arc ---
+    const totalPoints = 10;
+    const radius = 2;
+    const arcPoints = [];
+    for (let i = 0; i < totalPoints; i++) {
+      const t = i / (totalPoints - 1);
+      const angle = t * Math.PI;
+      const x = radius * Math.cos(angle);
+      const z = radius * Math.sin(angle);
+      arcPoints.push(new THREE.Vector3(x, -1, z));
+    }
+    const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPoints);
+    const arcMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    const arc = new THREE.Line(arcGeo, arcMat);
+    scene.add(arc);
+
     // --- Box ---
     const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
 

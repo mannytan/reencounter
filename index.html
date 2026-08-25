@@ -52,6 +52,19 @@
     grid.position.y = -1;
     scene.add(grid);
 
+    // --- Ground ---
+    const groundGeo = new THREE.PlaneGeometry(4, 4);
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0x0a1a33,
+      roughness: 0.9,
+      metalness: 0.1,
+      side: THREE.DoubleSide,
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -1;
+    scene.add(ground);
+
     // --- Box ---
     const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
 

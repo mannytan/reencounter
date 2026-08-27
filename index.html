@@ -85,6 +85,39 @@
     const sphereWireframe = new THREE.LineSegments(sphereEdgesGeo, edgesMat);
     sphere.add(sphereWireframe);
 
+    // --- 10-point star (vector shape) ---
+    function starShape(points, outerRadius, innerRadius) {
+      const shape = new THREE.Shape();
+      for (let i = 0; i < points * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y);
+      }
+      shape.closePath();
+      return shape;
+    }
+
+    const starGeo = new THREE.ExtrudeGeometry(
+      starShape(10, 0.9, 0.4),
+      { depth: 0.3, bevelEnabled: false }
+    );
+    starGeo.center();
+
+    const starMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1a2e,
+      roughness: 0.4,
+      metalness: 0.8,
+    });
+    const star = new THREE.Mesh(starGeo, starMat);
+    star.position.set(-2, 0, 0);
+    scene.add(star);
+
+    const starEdgesGeo = new THREE.EdgesGeometry(starGeo);
+    const starWireframe = new THREE.LineSegments(starEdgesGeo, edgesMat);
+    star.add(starWireframe);
+
     // --- Lighting ---
     const ambient = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambient);

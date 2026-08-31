@@ -128,7 +128,9 @@ function updateSlices(count) {
 const gui = new GUI({ width: 400 });
 const mainFolder = gui.addFolder('Main');
 mainFolder.add(params, 'radius', 1, 10, 0.1).name('Radius').onChange(updateRadius);
-mainFolder.add(params, 'slices', 1, 50, 1).name('Slices').onChange(updateSlices);
+
+const slicesFolder = gui.addFolder('Slices');
+slicesFolder.add(params, 'slices', 3, 30, 1).name('Slices').onChange(updateSlices);
 
 // --- Box ---
 const geometry = new THREE.BoxGeometry(1, 1, 1);

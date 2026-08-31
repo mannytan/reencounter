@@ -124,6 +124,37 @@ function rebuildSliceLine(count) {
 const segmentCircleMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
 let segmentCircles = [];
 
+// --- Red Path ---
+// Alternates between each green circle's outward-facing arc (outside
+// the white circle) and each blue circle's inward-facing arc (inside
+// the white circle). Since the blue circle's diameter is exactly the
+// segment between two green circles' edges, blue is tangent to both
+// neighboring green circles at those edge points -- so those points
+// double as the transition points, no intersection math required.
+const RED_ARC_SEGMENTS = 10;
+const redPathMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+let redPathGeo;
+let redPath;
+
+function normalizeAngle(a) {
+  const twoPi = Math.PI * 2;
+  a = a % twoPi;
+  if (a < 0) a += twoPi;
+  return a;
+}
+
+function rebuildRedPath(count) {
+  if (redPath) {
+    scene.remove(redPath);
+    redPathGeo.dispose();
+  }
+  const pointsPerSlice = 2 * (RED_ARC_SEGMENTS + 1);
+  redPathGeo = new THREE.BufferGeometry();
+  redPathGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * pointsPerSlice * 3), 3));
+  redPath = new THREE.LineLoop(redPathGeo, redPathMat);
+  scene.add(redPath);
+}
+
 function rebuildRadiusCubes(count) {
   radiusCubes.forEach((cube) => scene.remove(cube));
   sliceCircles.forEach((circle) => scene.remove(circle));
@@ -146,6 +177,7 @@ function rebuildRadiusCubes(count) {
     scene.add(segmentCircle);
   }
   rebuildSliceLine(count);
+  rebuildRedPath(count);
 }
 rebuildRadiusCubes(params.slices);
 
@@ -165,8 +197,10 @@ function updateRadiusCubePositions(t) {
   const count = params.slices;
 
   const positions = [];
+  const sliceAngles = [];
   for (let i = 0; i < count; i++) {
     const angle = computeSliceAngle(i, count, t);
+    sliceAngles.push(angle);
     positions.push({ x: r * Math.cos(angle), z: r * Math.sin(angle) });
   }
 
@@ -191,6 +225,14 @@ function updateRadiusCubePositions(t) {
 
   // Each segment runs from one circle's edge to the next circle's edge
   // (along the line between their centers), not center-to-center.
+  const segStartX = new Array(count);
+  const segStartZ = new Array(count);
+  const segEndX = new Array(count);
+  const segEndZ = new Array(count);
+  const segMidX = new Array(count);
+  const segMidZ = new Array(count);
+  const segRadius = new Array(count);
+
   const linePos = sliceLine.geometry.attributes.position;
   for (let i = 0; i < count; i++) {
     const next = (i + 1) % count;
@@ -211,10 +253,64 @@ function updateRadiusCubePositions(t) {
     // Blue circle per segment: diameter = segment length, centered on
     // the segment's midpoint.
     const segLength = Math.hypot(endX - startX, endZ - startZ);
-    segmentCircles[i].position.set((startX + endX) / 2, -1, (startZ + endZ) / 2);
+    const midX = (startX + endX) / 2;
+    const midZ = (startZ + endZ) / 2;
+    segmentCircles[i].position.set(midX, -1, midZ);
     segmentCircles[i].scale.setScalar(segLength / 2);
+
+    segStartX[i] = startX;
+    segStartZ[i] = startZ;
+    segEndX[i] = endX;
+    segEndZ[i] = endZ;
+    segMidX[i] = midX;
+    segMidZ[i] = midZ;
+    segRadius[i] = segLength / 2;
   }
   linePos.needsUpdate = true;
+
+  // --- Red Path ---
+  // Per slice: green's outward arc (from the tangent point with the
+  // previous blue circle to the tangent point with the next blue
+  // circle, taking the side away from the white circle's center),
+  // then that same blue circle's inward arc (taking the side toward
+  // the center).
+  const redPos = redPath.geometry.attributes.position;
+  let w = 0;
+  for (let i = 0; i < count; i++) {
+    const prevSeg = (i - 1 + count) % count;
+    const gcx = positions[i].x;
+    const gcz = positions[i].z;
+    const gr = radii[i];
+    const entryX = segEndX[prevSeg];
+    const entryZ = segEndZ[prevSeg];
+    const exitX = segStartX[i];
+    const exitZ = segStartZ[i];
+    const gAngleA = Math.atan2(entryZ - gcz, entryX - gcx);
+    const gAngleB = Math.atan2(exitZ - gcz, exitX - gcx);
+    const gPreferAngle = sliceAngles[i]; // outward direction from origin
+    const gDiffAB = normalizeAngle(gAngleB - gAngleA);
+    const gDiffAP = normalizeAngle(gPreferAngle - gAngleA);
+    const gExtent = gDiffAP <= gDiffAB ? gDiffAB : gDiffAB - Math.PI * 2;
+    for (let s = 0; s <= RED_ARC_SEGMENTS; s++) {
+      const ang = gAngleA + (gExtent * s) / RED_ARC_SEGMENTS;
+      redPos.setXYZ(w++, gcx + gr * Math.cos(ang), -1, gcz + gr * Math.sin(ang));
+    }
+
+    const bcx = segMidX[i];
+    const bcz = segMidZ[i];
+    const br = segRadius[i];
+    const bAngleA = Math.atan2(segStartZ[i] - bcz, segStartX[i] - bcx);
+    const bAngleB = Math.atan2(segEndZ[i] - bcz, segEndX[i] - bcx);
+    const bPreferAngle = Math.atan2(bcz, bcx) + Math.PI; // toward origin
+    const bDiffAB = normalizeAngle(bAngleB - bAngleA);
+    const bDiffAP = normalizeAngle(bPreferAngle - bAngleA);
+    const bExtent = bDiffAP <= bDiffAB ? bDiffAB : bDiffAB - Math.PI * 2;
+    for (let s = 0; s <= RED_ARC_SEGMENTS; s++) {
+      const ang = bAngleA + (bExtent * s) / RED_ARC_SEGMENTS;
+      redPos.setXYZ(w++, bcx + br * Math.cos(ang), -1, bcz + br * Math.sin(ang));
+    }
+  }
+  redPos.needsUpdate = true;
 }
 
 // --- Debug Text ---

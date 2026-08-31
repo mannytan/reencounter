@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import GUI from 'lil-gui';
 
 const container = document.getElementById('threejs-container');
 const canvas = document.getElementById('threejs-canvas');
@@ -47,16 +48,19 @@ scene.add(ground);
 
 // --- Arc ---
 const totalPoints = 24;
-const radius = 5;
-const arcPoints = [];
-for (let i = 0; i < totalPoints; i++) {
-  const t = i / totalPoints;
-  const angle = t * Math.PI * 2;
-  const x = radius * Math.cos(angle);
-  const z = radius * Math.sin(angle);
-  arcPoints.push(new THREE.Vector3(x, -1, z));
+const params = { radius: 5 };
+
+function computeArcPoints(r) {
+  const points = [];
+  for (let i = 0; i < totalPoints; i++) {
+    const t = i / totalPoints;
+    const angle = t * Math.PI * 2;
+    points.push(new THREE.Vector3(r * Math.cos(angle), -1, r * Math.sin(angle)));
+  }
+  return points;
 }
-const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPoints);
+
+const arcGeo = new THREE.BufferGeometry().setFromPoints(computeArcPoints(params.radius));
 const arcMat = new THREE.LineBasicMaterial({ color: 0xffffff });
 const arc = new THREE.LineLoop(arcGeo, arcMat);
 arc.name = 'main circle';
@@ -67,13 +71,21 @@ const radiusCubeCount = 10;
 const radiusCubeGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
 const radiusCubeEdgesGeo = new THREE.EdgesGeometry(radiusCubeGeo);
 const radiusCubeMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+const radiusCubes = [];
 for (let i = 0; i < radiusCubeCount; i++) {
-  const angle = (i / radiusCubeCount) * Math.PI * 2;
   const radiusCube = new THREE.LineSegments(radiusCubeEdgesGeo, radiusCubeMat);
   radiusCube.scale.setScalar(0.2);
-  radiusCube.position.set(radius * Math.cos(angle), -1, radius * Math.sin(angle));
+  radiusCubes.push(radiusCube);
   scene.add(radiusCube);
 }
+
+function updateRadiusCubes(r) {
+  radiusCubes.forEach((cube, i) => {
+    const angle = (i / radiusCubeCount) * Math.PI * 2;
+    cube.position.set(r * Math.cos(angle), -1, r * Math.sin(angle));
+  });
+}
+updateRadiusCubes(params.radius);
 
 // --- Debug Text ---
 const debugCanvas = document.createElement('canvas');
@@ -98,9 +110,21 @@ debugPlane.rotation.x = -Math.PI / 2;
 
 const debugText = new THREE.Group();
 debugText.name = 'debug text';
-debugText.position.set(-(radius + 0.5), -0.99, 0);
+debugText.position.set(-(params.radius + 0.5), -0.99, 0);
 debugText.add(debugPlane);
 scene.add(debugText);
+
+// --- GUI ---
+function updateRadius(r) {
+  arc.geometry.dispose();
+  arc.geometry = new THREE.BufferGeometry().setFromPoints(computeArcPoints(r));
+  updateRadiusCubes(r);
+  debugText.position.x = -(r + 0.5);
+}
+
+const gui = new GUI();
+const mainFolder = gui.addFolder('Main');
+mainFolder.add(params, 'radius', 1, 10, 0.1).name('Radius').onChange(updateRadius);
 
 // --- Box ---
 const geometry = new THREE.BoxGeometry(1, 1, 1);

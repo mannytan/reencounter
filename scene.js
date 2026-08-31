@@ -59,6 +59,7 @@ for (let i = 0; i < totalPoints; i++) {
 const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPoints);
 const arcMat = new THREE.LineBasicMaterial({ color: 0xffffff });
 const arc = new THREE.LineLoop(arcGeo, arcMat);
+arc.name = 'main circle';
 scene.add(arc);
 
 // --- Radius Cubes ---
@@ -97,7 +98,7 @@ debugPlane.rotation.x = -Math.PI / 2;
 
 const debugText = new THREE.Group();
 debugText.name = 'debug text';
-debugText.position.set(-2.5, -0.99, 0);
+debugText.position.set(-(radius + 0.5), -0.99, 0);
 debugText.add(debugPlane);
 scene.add(debugText);
 

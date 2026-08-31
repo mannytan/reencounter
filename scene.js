@@ -55,7 +55,7 @@ const params = {
   noiseFrequency: 0.3,
   noiseSpeed: 0.2,
   noiseOffset: 0,
-  spread: 2,
+  spread: 1,
   radiusFill: 0.9,
   minCircleRadius: 0.05,
   maxCircleRadius: 1,

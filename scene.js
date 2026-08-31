@@ -122,7 +122,7 @@ function updateRadius(r) {
   debugText.position.x = -(r + 0.5);
 }
 
-const gui = new GUI();
+const gui = new GUI({ width: 400 });
 const mainFolder = gui.addFolder('Main');
 mainFolder.add(params, 'radius', 1, 10, 0.1).name('Radius').onChange(updateRadius);
 

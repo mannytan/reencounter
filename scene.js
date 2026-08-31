@@ -9,7 +9,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x001233, 10, 30);
 
 const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(3, 2.5, 4);
+camera.position.set(7.5, 6.25, 10);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -23,8 +23,8 @@ controls.dampingFactor = 0.05;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 1.5;
 controls.enablePan = false;
-controls.minDistance = 2;
-controls.maxDistance = 10;
+controls.minDistance = 5;
+controls.maxDistance = 25;
 
 // --- Grid ---
 const grid = new THREE.GridHelper(20, 20, 0x333333, 0x222222);
@@ -47,7 +47,7 @@ scene.add(ground);
 
 // --- Arc ---
 const totalPoints = 24;
-const radius = 2;
+const radius = 5;
 const arcPoints = [];
 for (let i = 0; i < totalPoints; i++) {
   const t = i / totalPoints;

@@ -137,16 +137,57 @@ let segmentCircles = [];
 const RED_ARC_SEGMENTS = 10;
 // Fat-line material: real pixel-width lines (LineBasicMaterial.linewidth
 // is ignored by almost all browsers due to a WebGL limitation).
+//
+// The path is drawn in two arc segments per slice (green arc + blue arc)
+// via Line2, which extends each segment slightly at the joints so there
+// are no gaps between segments. With transparent+opacity<1 those tiny
+// joint overlaps blend on top of each other and double up the alpha,
+// making the joints look darker/more opaque than the rest of the line.
+// Fix: render the path fully opaque into an offscreen render target
+// (overlapping opaque draws just overwrite each other, no compounding),
+// then composite that flattened result onto the scene once at the
+// target opacity, so the opacity is uniform everywhere.
 const redPathMat = new LineMaterial({
   color: 0xff0000,
   linewidth: 5,
-  transparent: true,
-  opacity: 0.4,
+  transparent: false,
+  opacity: 1,
 });
 redPathMat.resolution.set(container.clientWidth, container.clientHeight);
 let redPathGeo;
 let redPath;
 let redPathFlat; // reused each frame: [x0,y0,z0, x1,y1,z1, ..., x0,y0,z0] (closed)
+
+// Offscreen scene + render target that the red path is drawn into.
+const redOnlyScene = new THREE.Scene();
+const RED_PATH_OPACITY = 0.4;
+const redRenderTarget = new THREE.WebGLRenderTarget(1, 1, {
+  format: THREE.RGBAFormat,
+});
+
+// Full-screen NDC quad that composites the red-path render target onto
+// the main scene in a single blended pass.
+const compositeScene = new THREE.Scene();
+const compositeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const compositeMat = new THREE.MeshBasicMaterial({
+  map: redRenderTarget.texture,
+  transparent: true,
+  opacity: RED_PATH_OPACITY,
+  depthTest: false,
+  depthWrite: false,
+  toneMapped: false,
+});
+const compositeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMat);
+compositeScene.add(compositeQuad);
+
+function resizeRedRenderTarget() {
+  const pr = renderer.getPixelRatio();
+  redRenderTarget.setSize(
+    Math.max(1, Math.round(container.clientWidth * pr)),
+    Math.max(1, Math.round(container.clientHeight * pr))
+  );
+}
+resizeRedRenderTarget();
 
 function normalizeAngle(a) {
   const twoPi = Math.PI * 2;
@@ -157,7 +198,7 @@ function normalizeAngle(a) {
 
 function rebuildRedPath(count) {
   if (redPath) {
-    scene.remove(redPath);
+    redOnlyScene.remove(redPath);
     redPathGeo.dispose();
   }
   const pointsPerSlice = 2 * (RED_ARC_SEGMENTS + 1);
@@ -167,7 +208,7 @@ function rebuildRedPath(count) {
   redPathGeo.setPositions(redPathFlat);
   redPath = new Line2(redPathGeo, redPathMat);
   redPath.computeLineDistances();
-  scene.add(redPath);
+  redOnlyScene.add(redPath);
 }
 
 function rebuildRadiusCubes(count) {
@@ -418,6 +459,7 @@ new ResizeObserver(() => {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   redPathMat.resolution.set(w, h);
+  resizeRedRenderTarget();
 }).observe(container);
 
 // --- Animate ---
@@ -426,6 +468,23 @@ function animate() {
   requestAnimationFrame(animate);
   updateRadiusCubePositions(clock.getElapsedTime());
   controls.update();
+
+  // Pass 1: draw the red path, fully opaque, into an offscreen target.
+  // Overlapping joint geometry just overwrites itself here -- no alpha
+  // compounding since the material is not transparent.
+  renderer.setRenderTarget(redRenderTarget);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, true, false);
+  renderer.render(redOnlyScene, camera);
+
+  // Pass 2: draw the main scene normally.
+  renderer.setRenderTarget(null);
+  renderer.setClearColor(0x001233, 1);
   renderer.render(scene, camera);
+
+  // Pass 3: composite the flattened red path on top at uniform opacity.
+  renderer.autoClear = false;
+  renderer.render(compositeScene, compositeCamera);
+  renderer.autoClear = true;
 }
 animate();

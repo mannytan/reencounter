@@ -70,7 +70,7 @@ for (let i = 0; i < radiusCubeCount; i++) {
   const angle = (i / radiusCubeCount) * Math.PI * 2;
   const radiusCube = new THREE.LineSegments(radiusCubeEdgesGeo, radiusCubeMat);
   radiusCube.scale.setScalar(0.2);
-  radiusCube.position.set(radius * Math.cos(angle), -0.97, radius * Math.sin(angle));
+  radiusCube.position.set(radius * Math.cos(angle), -1, radius * Math.sin(angle));
   scene.add(radiusCube);
 }
 

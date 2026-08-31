@@ -65,7 +65,7 @@ scene.add(arc);
 const radiusCubeCount = 10;
 const radiusCubeGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
 const radiusCubeMat = new THREE.MeshStandardMaterial({
-  color: 0x1a1a2e,
+  color: 0x00ff00,
   roughness: 0.4,
   metalness: 0.8,
 });
@@ -73,7 +73,8 @@ const radiusCubeEdgesGeo = new THREE.EdgesGeometry(radiusCubeGeo);
 for (let i = 0; i < radiusCubeCount; i++) {
   const angle = (i / radiusCubeCount) * Math.PI * 2;
   const radiusCube = new THREE.Mesh(radiusCubeGeo, radiusCubeMat);
-  radiusCube.position.set(radius * Math.cos(angle), -0.85, radius * Math.sin(angle));
+  radiusCube.scale.setScalar(0.1);
+  radiusCube.position.set(radius * Math.cos(angle), -0.985, radius * Math.sin(angle));
   const radiusCubeWireframe = new THREE.LineSegments(radiusCubeEdgesGeo, new THREE.LineBasicMaterial({ color: 0x4f8ef7 }));
   radiusCube.add(radiusCubeWireframe);
   scene.add(radiusCube);

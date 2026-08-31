@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import GUI from 'lil-gui';
+import { createNoise2D } from 'simplex-noise';
 
 const container = document.getElementById('threejs-container');
 const canvas = document.getElementById('threejs-canvas');
@@ -48,7 +49,15 @@ scene.add(ground);
 
 // --- Arc ---
 const totalPoints = 24;
-const params = { radius: 5, slices: 10 };
+const params = {
+  radius: 5,
+  slices: 10,
+  noiseFrequency: 0.3,
+  noiseSpeed: 0.2,
+  noiseOffset: 0,
+  spread: 0.8,
+};
+const noise2D = createNoise2D();
 
 function computeArcPoints(r) {
   const points = [];
@@ -72,19 +81,36 @@ const radiusCubeEdgesGeo = new THREE.EdgesGeometry(radiusCubeGeo);
 const radiusCubeMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 let radiusCubes = [];
 
-function rebuildRadiusCubes(count, r) {
+function rebuildRadiusCubes(count) {
   radiusCubes.forEach((cube) => scene.remove(cube));
   radiusCubes = [];
   for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
     const radiusCube = new THREE.LineSegments(radiusCubeEdgesGeo, radiusCubeMat);
     radiusCube.scale.setScalar(0.2);
-    radiusCube.position.set(r * Math.cos(angle), -1, r * Math.sin(angle));
     radiusCubes.push(radiusCube);
     scene.add(radiusCube);
   }
 }
-rebuildRadiusCubes(params.slices, params.radius);
+rebuildRadiusCubes(params.slices);
+
+// Noise-driven slice angle: normalized simplex noise blended within each
+// slice's angular slot, so cubes can drift but never cross a neighbor.
+function computeSliceAngle(i, count, t) {
+  const baseAngle = (i / count) * Math.PI * 2;
+  const slotWidth = (Math.PI * 2) / count;
+  const margin = slotWidth * 0.5 * params.spread;
+  const n = noise2D(i * params.noiseFrequency + params.noiseOffset, t * params.noiseSpeed);
+  const normalized = (n + 1) / 2;
+  return baseAngle - margin + normalized * (2 * margin);
+}
+
+function updateRadiusCubePositions(t) {
+  const r = params.radius;
+  radiusCubes.forEach((cube, i) => {
+    const angle = computeSliceAngle(i, params.slices, t);
+    cube.position.set(r * Math.cos(angle), -1, r * Math.sin(angle));
+  });
+}
 
 // --- Debug Text ---
 const debugCanvas = document.createElement('canvas');
@@ -117,12 +143,11 @@ scene.add(debugText);
 function updateRadius(r) {
   arc.geometry.dispose();
   arc.geometry = new THREE.BufferGeometry().setFromPoints(computeArcPoints(r));
-  rebuildRadiusCubes(params.slices, r);
   debugText.position.x = -(r + 0.5);
 }
 
 function updateSlices(count) {
-  rebuildRadiusCubes(count, params.radius);
+  rebuildRadiusCubes(count);
 }
 
 const gui = new GUI({ width: 400 });
@@ -131,6 +156,10 @@ mainFolder.add(params, 'radius', 1, 10, 0.1).name('Radius').onChange(updateRadiu
 
 const slicesFolder = gui.addFolder('Slices');
 slicesFolder.add(params, 'slices', 3, 30, 1).name('Slices').onChange(updateSlices);
+slicesFolder.add(params, 'noiseFrequency', 0.05, 2, 0.01).name('Frequency');
+slicesFolder.add(params, 'noiseSpeed', 0, 2, 0.01).name('Speed');
+slicesFolder.add(params, 'noiseOffset', 0, 10, 0.1).name('Offset');
+slicesFolder.add(params, 'spread', 0, 1, 0.01).name('Spread');
 
 // --- Box ---
 const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -162,8 +191,10 @@ new ResizeObserver(() => {
 }).observe(container);
 
 // --- Animate ---
+const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
+  updateRadiusCubePositions(clock.getElapsedTime());
   controls.update();
   renderer.render(scene, camera);
 }

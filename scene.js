@@ -56,6 +56,7 @@ const params = {
   noiseSpeed: 0.2,
   noiseOffset: 0,
   spread: 2,
+  circleRadius: 0.3,
 };
 const noise2D = createNoise2D();
 
@@ -81,14 +82,42 @@ const radiusCubeEdgesGeo = new THREE.EdgesGeometry(radiusCubeGeo);
 const radiusCubeMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 let radiusCubes = [];
 
+// --- Slice Circles ---
+function computeCircleGeometry(r) {
+  const segs = 16;
+  const pts = [];
+  for (let i = 0; i < segs; i++) {
+    const a = (i / segs) * Math.PI * 2;
+    pts.push(new THREE.Vector3(r * Math.cos(a), 0, r * Math.sin(a)));
+  }
+  return new THREE.BufferGeometry().setFromPoints(pts);
+}
+let sliceCircleGeo = computeCircleGeometry(params.circleRadius);
+const sliceCircleMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+let sliceCircles = [];
+
+function updateCircleRadius(r) {
+  sliceCircleGeo.dispose();
+  sliceCircleGeo = computeCircleGeometry(r);
+  sliceCircles.forEach((circle) => {
+    circle.geometry = sliceCircleGeo;
+  });
+}
+
 function rebuildRadiusCubes(count) {
   radiusCubes.forEach((cube) => scene.remove(cube));
+  sliceCircles.forEach((circle) => scene.remove(circle));
   radiusCubes = [];
+  sliceCircles = [];
   for (let i = 0; i < count; i++) {
     const radiusCube = new THREE.LineSegments(radiusCubeEdgesGeo, radiusCubeMat);
     radiusCube.scale.setScalar(0.2);
     radiusCubes.push(radiusCube);
     scene.add(radiusCube);
+
+    const sliceCircle = new THREE.LineLoop(sliceCircleGeo, sliceCircleMat);
+    sliceCircles.push(sliceCircle);
+    scene.add(sliceCircle);
   }
 }
 rebuildRadiusCubes(params.slices);
@@ -108,7 +137,10 @@ function updateRadiusCubePositions(t) {
   const r = params.radius;
   radiusCubes.forEach((cube, i) => {
     const angle = computeSliceAngle(i, params.slices, t);
-    cube.position.set(r * Math.cos(angle), -1, r * Math.sin(angle));
+    const x = r * Math.cos(angle);
+    const z = r * Math.sin(angle);
+    cube.position.set(x, -1, z);
+    sliceCircles[i].position.set(x, -1, z);
   });
 }
 
@@ -160,6 +192,7 @@ slicesFolder.add(params, 'noiseFrequency', 0.05, 2, 0.01).name('Frequency');
 slicesFolder.add(params, 'noiseSpeed', 0, 2, 0.01).name('Speed');
 slicesFolder.add(params, 'noiseOffset', 0, 10, 0.1).name('Offset');
 slicesFolder.add(params, 'spread', 0, 2, 0.01).name('Spread');
+slicesFolder.add(params, 'circleRadius', 0.05, 2, 0.01).name('Circle Radius').onChange(updateCircleRadius);
 
 // --- Box ---
 const geometry = new THREE.BoxGeometry(1, 1, 1);

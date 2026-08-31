@@ -70,7 +70,7 @@
 
     // --- Arc ---
     const totalPoints = 24;
-    const params = { radius: 5 };
+    const params = { radius: 5, slices: 10 };
 
     function computeArcPoints(r) {
       const points = [];
@@ -89,25 +89,24 @@
     scene.add(arc);
 
     // --- Radius Cubes ---
-    const radiusCubeCount = 10;
     const radiusCubeGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
     const radiusCubeEdgesGeo = new THREE.EdgesGeometry(radiusCubeGeo);
     const radiusCubeMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-    const radiusCubes = [];
-    for (let i = 0; i < radiusCubeCount; i++) {
-      const radiusCube = new THREE.LineSegments(radiusCubeEdgesGeo, radiusCubeMat);
-      radiusCube.scale.setScalar(0.2);
-      radiusCubes.push(radiusCube);
-      scene.add(radiusCube);
-    }
+    let radiusCubes = [];
 
-    function updateRadiusCubes(r) {
-      radiusCubes.forEach((cube, i) => {
-        const angle = (i / radiusCubeCount) * Math.PI * 2;
-        cube.position.set(r * Math.cos(angle), -1, r * Math.sin(angle));
-      });
+    function rebuildRadiusCubes(count, r) {
+      radiusCubes.forEach((cube) => scene.remove(cube));
+      radiusCubes = [];
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const radiusCube = new THREE.LineSegments(radiusCubeEdgesGeo, radiusCubeMat);
+        radiusCube.scale.setScalar(0.2);
+        radiusCube.position.set(r * Math.cos(angle), -1, r * Math.sin(angle));
+        radiusCubes.push(radiusCube);
+        scene.add(radiusCube);
+      }
     }
-    updateRadiusCubes(params.radius);
+    rebuildRadiusCubes(params.slices, params.radius);
 
     // --- Debug Text ---
     const debugCanvas = document.createElement('canvas');
@@ -140,13 +139,18 @@
     function updateRadius(r) {
       arc.geometry.dispose();
       arc.geometry = new THREE.BufferGeometry().setFromPoints(computeArcPoints(r));
-      updateRadiusCubes(r);
+      rebuildRadiusCubes(params.slices, r);
       debugText.position.x = -(r + 0.5);
+    }
+
+    function updateSlices(count) {
+      rebuildRadiusCubes(count, params.radius);
     }
 
     const gui = new GUI({ width: 400 });
     const mainFolder = gui.addFolder('Main');
     mainFolder.add(params, 'radius', 1, 10, 0.1).name('Radius').onChange(updateRadius);
+    mainFolder.add(params, 'slices', 1, 50, 1).name('Slices').onChange(updateSlices);
 
     // --- Box ---
     const geometry = new THREE.BoxGeometry(1, 1, 1);

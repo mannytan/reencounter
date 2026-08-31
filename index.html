@@ -25,6 +25,9 @@
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { Line2 } from 'three/addons/lines/Line2.js';
+    import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+    import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
     import GUI from 'lil-gui';
     import { createNoise2D } from 'simplex-noise';
 
@@ -155,9 +158,18 @@
     // neighboring green circles at those edge points -- so those points
     // double as the transition points, no intersection math required.
     const RED_ARC_SEGMENTS = 10;
-    const redPathMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    // Fat-line material: real pixel-width lines (LineBasicMaterial.linewidth
+    // is ignored by almost all browsers due to a WebGL limitation).
+    const redPathMat = new LineMaterial({
+      color: 0xff0000,
+      linewidth: 5,
+      transparent: true,
+      opacity: 0.4,
+    });
+    redPathMat.resolution.set(innerWidth, innerHeight);
     let redPathGeo;
     let redPath;
+    let redPathFlat; // reused each frame: [x0,y0,z0, x1,y1,z1, ..., x0,y0,z0] (closed)
 
     function normalizeAngle(a) {
       const twoPi = Math.PI * 2;
@@ -172,9 +184,12 @@
         redPathGeo.dispose();
       }
       const pointsPerSlice = 2 * (RED_ARC_SEGMENTS + 1);
-      redPathGeo = new THREE.BufferGeometry();
-      redPathGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * pointsPerSlice * 3), 3));
-      redPath = new THREE.LineLoop(redPathGeo, redPathMat);
+      const pointCount = count * pointsPerSlice + 1; // +1 to close the loop
+      redPathFlat = new Float32Array(pointCount * 3);
+      redPathGeo = new LineGeometry();
+      redPathGeo.setPositions(redPathFlat);
+      redPath = new Line2(redPathGeo, redPathMat);
+      redPath.computeLineDistances();
       scene.add(redPath);
     }
 
@@ -297,8 +312,13 @@
       // circle, taking the side away from the white circle's center),
       // then that same blue circle's inward arc (taking the side toward
       // the center).
-      const redPos = redPath.geometry.attributes.position;
       let w = 0;
+      function pushRedPoint(x, z) {
+        redPathFlat[w * 3] = x;
+        redPathFlat[w * 3 + 1] = -1;
+        redPathFlat[w * 3 + 2] = z;
+        w++;
+      }
       for (let i = 0; i < count; i++) {
         const prevSeg = (i - 1 + count) % count;
         const gcx = positions[i].x;
@@ -316,7 +336,7 @@
         const gExtent = gDiffAP <= gDiffAB ? gDiffAB : gDiffAB - Math.PI * 2;
         for (let s = 0; s <= RED_ARC_SEGMENTS; s++) {
           const ang = gAngleA + (gExtent * s) / RED_ARC_SEGMENTS;
-          redPos.setXYZ(w++, gcx + gr * Math.cos(ang), -1, gcz + gr * Math.sin(ang));
+          pushRedPoint(gcx + gr * Math.cos(ang), gcz + gr * Math.sin(ang));
         }
 
         const bcx = segMidX[i];
@@ -330,10 +350,15 @@
         const bExtent = bDiffAP <= bDiffAB ? bDiffAB : bDiffAB - Math.PI * 2;
         for (let s = 0; s <= RED_ARC_SEGMENTS; s++) {
           const ang = bAngleA + (bExtent * s) / RED_ARC_SEGMENTS;
-          redPos.setXYZ(w++, bcx + br * Math.cos(ang), -1, bcz + br * Math.sin(ang));
+          pushRedPoint(bcx + br * Math.cos(ang), bcz + br * Math.sin(ang));
         }
       }
-      redPos.needsUpdate = true;
+      // Close the loop by repeating the first point.
+      redPathFlat[w * 3] = redPathFlat[0];
+      redPathFlat[w * 3 + 1] = redPathFlat[1];
+      redPathFlat[w * 3 + 2] = redPathFlat[2];
+      redPath.geometry.setPositions(redPathFlat);
+      redPath.computeLineDistances();
     }
 
     // --- Debug Text ---
@@ -414,6 +439,7 @@
       camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(innerWidth, innerHeight);
+      redPathMat.resolution.set(innerWidth, innerHeight);
     });
 
     // --- Animate ---

@@ -100,6 +100,24 @@ const sliceCircleGeo = computeUnitCircleGeometry();
 const sliceCircleMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 let sliceCircles = [];
 
+// --- Slice Line ---
+// Connects each slice's live position to the next, forming a closed
+// loop that follows the noise-driven drift every frame.
+const sliceLineMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
+let sliceLineGeo;
+let sliceLine;
+
+function rebuildSliceLine(count) {
+  if (sliceLine) {
+    scene.remove(sliceLine);
+    sliceLineGeo.dispose();
+  }
+  sliceLineGeo = new THREE.BufferGeometry();
+  sliceLineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+  sliceLine = new THREE.LineLoop(sliceLineGeo, sliceLineMat);
+  scene.add(sliceLine);
+}
+
 function rebuildRadiusCubes(count) {
   radiusCubes.forEach((cube) => scene.remove(cube));
   sliceCircles.forEach((circle) => scene.remove(circle));
@@ -115,6 +133,7 @@ function rebuildRadiusCubes(count) {
     sliceCircles.push(sliceCircle);
     scene.add(sliceCircle);
   }
+  rebuildSliceLine(count);
 }
 rebuildRadiusCubes(params.slices);
 
@@ -139,10 +158,13 @@ function updateRadiusCubePositions(t) {
     positions.push({ x: r * Math.cos(angle), z: r * Math.sin(angle) });
   }
 
+  const linePos = sliceLine.geometry.attributes.position;
+
   for (let i = 0; i < count; i++) {
     const { x, z } = positions[i];
     radiusCubes[i].position.set(x, -1, z);
     sliceCircles[i].position.set(x, -1, z);
+    linePos.setXYZ(i, x, -1, z);
 
     // Circle radius is driven by proximity to whichever neighbor is
     // closer, so it can never grow large enough to touch either one.
@@ -155,6 +177,8 @@ function updateRadiusCubePositions(t) {
     const clamped = THREE.MathUtils.clamp(safeRadius, params.minCircleRadius, params.maxCircleRadius);
     sliceCircles[i].scale.setScalar(clamped);
   }
+
+  linePos.needsUpdate = true;
 }
 
 // --- Debug Text ---

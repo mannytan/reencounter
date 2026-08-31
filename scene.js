@@ -118,11 +118,19 @@ function rebuildSliceLine(count) {
   scene.add(sliceLine);
 }
 
+// --- Segment Circles ---
+// One blue circle per line segment: diameter equal to the segment's
+// length, centered on the segment's midpoint.
+const segmentCircleMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
+let segmentCircles = [];
+
 function rebuildRadiusCubes(count) {
   radiusCubes.forEach((cube) => scene.remove(cube));
   sliceCircles.forEach((circle) => scene.remove(circle));
+  segmentCircles.forEach((circle) => scene.remove(circle));
   radiusCubes = [];
   sliceCircles = [];
+  segmentCircles = [];
   for (let i = 0; i < count; i++) {
     const radiusCube = new THREE.LineSegments(radiusCubeEdgesGeo, radiusCubeMat);
     radiusCube.scale.setScalar(0.2);
@@ -132,6 +140,10 @@ function rebuildRadiusCubes(count) {
     const sliceCircle = new THREE.LineLoop(sliceCircleGeo, sliceCircleMat);
     sliceCircles.push(sliceCircle);
     scene.add(sliceCircle);
+
+    const segmentCircle = new THREE.LineLoop(sliceCircleGeo, segmentCircleMat);
+    segmentCircles.push(segmentCircle);
+    scene.add(segmentCircle);
   }
   rebuildSliceLine(count);
 }
@@ -195,6 +207,12 @@ function updateRadiusCubePositions(t) {
     const endZ = b.z - dirZ * radii[next];
     linePos.setXYZ(i * 2, startX, -1, startZ);
     linePos.setXYZ(i * 2 + 1, endX, -1, endZ);
+
+    // Blue circle per segment: diameter = segment length, centered on
+    // the segment's midpoint.
+    const segLength = Math.hypot(endX - startX, endZ - startZ);
+    segmentCircles[i].position.set((startX + endX) / 2, -1, (startZ + endZ) / 2);
+    segmentCircles[i].scale.setScalar(segLength / 2);
   }
   linePos.needsUpdate = true;
 }

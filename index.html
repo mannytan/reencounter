@@ -71,7 +71,7 @@
     scene.add(ground);
 
     // --- Arc ---
-    const totalPoints = 24;
+    const totalPoints = 64;
     const params = {
       radius: 5,
       slices: 10,
@@ -111,7 +111,7 @@
     // Unit circle (radius 1); each instance is scaled per-frame to its
     // computed radius, so no geometry rebuilding is needed.
     function computeUnitCircleGeometry() {
-      const segs = 16;
+      const segs = 32;
       const pts = [];
       for (let i = 0; i < segs; i++) {
         const a = (i / segs) * Math.PI * 2;

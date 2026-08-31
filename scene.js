@@ -56,7 +56,9 @@ const params = {
   noiseSpeed: 0.2,
   noiseOffset: 0,
   spread: 2,
-  circleRadius: 0.3,
+  radiusFill: 0.9,
+  minCircleRadius: 0.05,
+  maxCircleRadius: 1,
 };
 const noise2D = createNoise2D();
 
@@ -83,26 +85,20 @@ const radiusCubeMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 let radiusCubes = [];
 
 // --- Slice Circles ---
-function computeCircleGeometry(r) {
+// Unit circle (radius 1); each instance is scaled per-frame to its
+// computed radius, so no geometry rebuilding is needed.
+function computeUnitCircleGeometry() {
   const segs = 16;
   const pts = [];
   for (let i = 0; i < segs; i++) {
     const a = (i / segs) * Math.PI * 2;
-    pts.push(new THREE.Vector3(r * Math.cos(a), 0, r * Math.sin(a)));
+    pts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
   }
   return new THREE.BufferGeometry().setFromPoints(pts);
 }
-let sliceCircleGeo = computeCircleGeometry(params.circleRadius);
+const sliceCircleGeo = computeUnitCircleGeometry();
 const sliceCircleMat = new THREE.LineBasicMaterial({ color: 0x00ff00 });
 let sliceCircles = [];
-
-function updateCircleRadius(r) {
-  sliceCircleGeo.dispose();
-  sliceCircleGeo = computeCircleGeometry(r);
-  sliceCircles.forEach((circle) => {
-    circle.geometry = sliceCircleGeo;
-  });
-}
 
 function rebuildRadiusCubes(count) {
   radiusCubes.forEach((cube) => scene.remove(cube));
@@ -135,13 +131,30 @@ function computeSliceAngle(i, count, t) {
 
 function updateRadiusCubePositions(t) {
   const r = params.radius;
-  radiusCubes.forEach((cube, i) => {
-    const angle = computeSliceAngle(i, params.slices, t);
-    const x = r * Math.cos(angle);
-    const z = r * Math.sin(angle);
-    cube.position.set(x, -1, z);
+  const count = params.slices;
+
+  const positions = [];
+  for (let i = 0; i < count; i++) {
+    const angle = computeSliceAngle(i, count, t);
+    positions.push({ x: r * Math.cos(angle), z: r * Math.sin(angle) });
+  }
+
+  for (let i = 0; i < count; i++) {
+    const { x, z } = positions[i];
+    radiusCubes[i].position.set(x, -1, z);
     sliceCircles[i].position.set(x, -1, z);
-  });
+
+    // Circle radius is driven by proximity to whichever neighbor is
+    // closer, so it can never grow large enough to touch either one.
+    const prev = positions[(i - 1 + count) % count];
+    const next = positions[(i + 1) % count];
+    const distPrev = Math.hypot(x - prev.x, z - prev.z);
+    const distNext = Math.hypot(x - next.x, z - next.z);
+    const minDist = Math.min(distPrev, distNext);
+    const safeRadius = (minDist / 2) * params.radiusFill;
+    const clamped = THREE.MathUtils.clamp(safeRadius, params.minCircleRadius, params.maxCircleRadius);
+    sliceCircles[i].scale.setScalar(clamped);
+  }
 }
 
 // --- Debug Text ---
@@ -192,7 +205,9 @@ slicesFolder.add(params, 'noiseFrequency', 0.05, 2, 0.01).name('Frequency');
 slicesFolder.add(params, 'noiseSpeed', 0, 2, 0.01).name('Speed');
 slicesFolder.add(params, 'noiseOffset', 0, 10, 0.1).name('Offset');
 slicesFolder.add(params, 'spread', 0, 2, 0.01).name('Spread');
-slicesFolder.add(params, 'circleRadius', 0.05, 2, 0.01).name('Circle Radius').onChange(updateCircleRadius);
+slicesFolder.add(params, 'radiusFill', 0, 1, 0.01).name('Fill');
+slicesFolder.add(params, 'minCircleRadius', 0.01, 1, 0.01).name('Min Radius');
+slicesFolder.add(params, 'maxCircleRadius', 0.1, 3, 0.01).name('Max Radius');
 
 // --- Box ---
 const geometry = new THREE.BoxGeometry(1, 1, 1);

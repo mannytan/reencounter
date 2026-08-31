@@ -102,22 +102,13 @@ debugText.add(debugPlane);
 scene.add(debugText);
 
 // --- Box ---
-const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-
-const material = new THREE.MeshStandardMaterial({
-  color: 0x1a1a2e,
-  roughness: 0.4,
-  metalness: 0.8,
-});
-const box = new THREE.Mesh(geometry, material);
-box.position.x = 2;
-box.scale.setScalar(0.25);
-scene.add(box);
+const geometry = new THREE.BoxGeometry(1, 1, 1);
 
 const edgesGeo = new THREE.EdgesGeometry(geometry);
 const edgesMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
-const wireframe = new THREE.LineSegments(edgesGeo, edgesMat);
-box.add(wireframe);
+const box = new THREE.LineSegments(edgesGeo, edgesMat);
+box.position.x = 2;
+scene.add(box);
 
 // --- Lighting ---
 scene.add(new THREE.AmbientLight(0xffffff, 0.4));

@@ -55,7 +55,7 @@ const params = {
   noiseFrequency: 0.3,
   noiseSpeed: 0.2,
   noiseOffset: 0,
-  spread: 0.8,
+  spread: 2,
 };
 const noise2D = createNoise2D();
 
@@ -159,7 +159,7 @@ slicesFolder.add(params, 'slices', 3, 30, 1).name('Slices').onChange(updateSlice
 slicesFolder.add(params, 'noiseFrequency', 0.05, 2, 0.01).name('Frequency');
 slicesFolder.add(params, 'noiseSpeed', 0, 2, 0.01).name('Speed');
 slicesFolder.add(params, 'noiseOffset', 0, 10, 0.1).name('Offset');
-slicesFolder.add(params, 'spread', 0, 1, 0.01).name('Spread');
+slicesFolder.add(params, 'spread', 0, 2, 0.01).name('Spread');
 
 // --- Box ---
 const geometry = new THREE.BoxGeometry(1, 1, 1);

@@ -136,8 +136,8 @@
         sliceLineGeo.dispose();
       }
       sliceLineGeo = new THREE.BufferGeometry();
-      sliceLineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-      sliceLine = new THREE.LineLoop(sliceLineGeo, sliceLineMat);
+      sliceLineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 2 * 3), 3));
+      sliceLine = new THREE.LineSegments(sliceLineGeo, sliceLineMat);
       scene.add(sliceLine);
     }
 
@@ -181,13 +181,11 @@
         positions.push({ x: r * Math.cos(angle), z: r * Math.sin(angle) });
       }
 
-      const linePos = sliceLine.geometry.attributes.position;
-
+      const radii = [];
       for (let i = 0; i < count; i++) {
         const { x, z } = positions[i];
         radiusCubes[i].position.set(x, -1, z);
         sliceCircles[i].position.set(x, -1, z);
-        linePos.setXYZ(i, x, -1, z);
 
         // Circle radius is driven by proximity to whichever neighbor is
         // closer, so it can never grow large enough to touch either one.
@@ -199,8 +197,28 @@
         const safeRadius = (minDist / 2) * params.radiusFill;
         const clamped = THREE.MathUtils.clamp(safeRadius, params.minCircleRadius, params.maxCircleRadius);
         sliceCircles[i].scale.setScalar(clamped);
+        radii.push(clamped);
       }
 
+      // Each segment runs from one circle's edge to the next circle's edge
+      // (along the line between their centers), not center-to-center.
+      const linePos = sliceLine.geometry.attributes.position;
+      for (let i = 0; i < count; i++) {
+        const next = (i + 1) % count;
+        const a = positions[i];
+        const b = positions[next];
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const dist = Math.hypot(dx, dz) || 1;
+        const dirX = dx / dist;
+        const dirZ = dz / dist;
+        const startX = a.x + dirX * radii[i];
+        const startZ = a.z + dirZ * radii[i];
+        const endX = b.x - dirX * radii[next];
+        const endZ = b.z - dirZ * radii[next];
+        linePos.setXYZ(i * 2, startX, -1, startZ);
+        linePos.setXYZ(i * 2 + 1, endX, -1, endZ);
+      }
       linePos.needsUpdate = true;
     }
 
@@ -251,7 +269,7 @@
     slicesFolder.add(params, 'noiseFrequency', 0.05, 2, 0.01).name('Frequency');
     slicesFolder.add(params, 'noiseSpeed', 0, 2, 0.01).name('Speed');
     slicesFolder.add(params, 'noiseOffset', 0, 10, 0.1).name('Offset');
-    slicesFolder.add(params, 'spread', 0, 2, 0.01).name('Spread');
+    slicesFolder.add(params, 'spread', 0, 1, 0.01).name('Spread');
     slicesFolder.add(params, 'radiusFill', 0, 1, 0.01).name('Fill');
     slicesFolder.add(params, 'minCircleRadius', 0.01, 1, 0.01).name('Min Radius');
     slicesFolder.add(params, 'maxCircleRadius', 0.1, 3, 0.01).name('Max Radius');

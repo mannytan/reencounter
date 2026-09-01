@@ -88,6 +88,7 @@ const viewParams = {
   showRed: true,
   showOrange: false,
   showCubes: false,
+  showSkin: true,
 };
 const noise2D = createNoise2D();
 
@@ -245,6 +246,72 @@ function resizeOrangeRenderTarget() {
 }
 resizeOrangeRenderTarget();
 
+// --- Red Skin ---
+// A double-sided surface stitched between the red paths of every stacked
+// cross section. Grid rows = cross sections; grid columns = the red
+// path's own vertices within one cross section (wrapped around, since
+// the path is a closed loop -- the duplicate closing point the Line2
+// geometry carries is excluded here so the wrap uses modulo instead of
+// a degenerate zero-width seam quad). No render-target trick needed
+// here (unlike the red/orange lines): this is one continuous mesh, not
+// overlapping line segments, so ordinary alpha blending is fine.
+const redSkinMat = new THREE.MeshBasicMaterial({
+  color: 0xff0000,
+  transparent: true,
+  opacity: 0.15,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+});
+let redSkinGeo;
+let redSkinMesh;
+let redSkinCols = 0; // vertices per row, i.e. per cross section's red path
+
+function rebuildRedSkin() {
+  if (redSkinMesh) {
+    scene.remove(redSkinMesh);
+    redSkinGeo.dispose();
+  }
+  const pointsPerSlice = 2 * (RED_ARC_SEGMENTS + 1);
+  redSkinCols = params.slices * pointsPerSlice;
+  const rows = params.crossSections;
+
+  redSkinGeo = new THREE.BufferGeometry();
+  redSkinGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(rows * redSkinCols * 3), 3));
+
+  const indices = [];
+  for (let r = 0; r < rows - 1; r++) {
+    for (let c = 0; c < redSkinCols; c++) {
+      const cNext = (c + 1) % redSkinCols;
+      const a = r * redSkinCols + c;
+      const b = r * redSkinCols + cNext;
+      const nextRowA = (r + 1) * redSkinCols + c;
+      const nextRowB = (r + 1) * redSkinCols + cNext;
+      indices.push(a, b, nextRowA);
+      indices.push(b, nextRowB, nextRowA);
+    }
+  }
+  redSkinGeo.setIndex(indices);
+
+  redSkinMesh = new THREE.Mesh(redSkinGeo, redSkinMat);
+  scene.add(redSkinMesh);
+}
+
+// Reuses this frame's already-computed per-cross-section red path data
+// (crossRedPathFlats) and group Y offsets -- no extra geometry math.
+function updateRedSkin() {
+  if (!redSkinMesh) return;
+  const pos = redSkinGeo.attributes.position;
+  for (let r = 0; r < crossRedPathFlats.length; r++) {
+    const flat = crossRedPathFlats[r];
+    const y = crossRedGroups[r].position.y;
+    const base = r * redSkinCols;
+    for (let c = 0; c < redSkinCols; c++) {
+      pos.setXYZ(base + c, flat[c * 3], y, flat[c * 3 + 2]);
+    }
+  }
+  pos.needsUpdate = true;
+}
+
 function normalizeAngle(a) {
   const twoPi = Math.PI * 2;
   a = a % twoPi;
@@ -385,6 +452,7 @@ function rebuildCrossSections() {
     crossOrangePathFlats.push(orangePathFlat);
   }
 
+  rebuildRedSkin();
   applyViewVisibility();
   updateCrossPositions();
 }
@@ -398,6 +466,7 @@ function applyViewVisibility() {
   crossOrangePaths.forEach((p) => (p.visible = viewParams.showOrange));
   crossRadiusCubes.forEach((arr) => arr.forEach((c) => (c.visible = viewParams.showCubes)));
   box.visible = viewParams.showCubes;
+  if (redSkinMesh) redSkinMesh.visible = viewParams.showSkin;
 }
 
 rebuildCrossSections();
@@ -603,6 +672,7 @@ function updateRadiusCubePositions(t) {
   for (let c = 0; c < crossGroups.length; c++) {
     updateCrossSectionGeometry(c, t);
   }
+  updateRedSkin();
 }
 
 // --- Debug Text ---
@@ -677,6 +747,7 @@ viewsFolder.add(viewParams, 'showWhite').name('White (Main Circle)').onChange(ap
 viewsFolder.add(viewParams, 'showGreen').name('Green (Slice Circles)').onChange(applyViewVisibility);
 viewsFolder.add(viewParams, 'showBlue').name('Blue (Segments)').onChange(applyViewVisibility);
 viewsFolder.add(viewParams, 'showRed').name('Red (Path)').onChange(applyViewVisibility);
+viewsFolder.add(viewParams, 'showSkin').name('Red Skin').onChange(applyViewVisibility);
 viewsFolder.add(viewParams, 'showOrange').name('Orange (Inverse Path)').onChange(applyViewVisibility);
 viewsFolder.add(viewParams, 'showCubes').name('Cubes').onChange(applyViewVisibility);
 

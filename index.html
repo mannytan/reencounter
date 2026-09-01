@@ -278,12 +278,17 @@
     // a degenerate zero-width seam quad). No render-target trick needed
     // here (unlike the red/orange lines): this is one continuous mesh, not
     // overlapping line segments, so ordinary alpha blending is fine.
-    const redSkinMat = new THREE.MeshBasicMaterial({
+    //
+    // Fully opaque and lit (MeshStandardMaterial) rather than flat-shaded,
+    // so it picks up the scene's directional lights -- visible highlights
+    // and shadowed folds across the surface's curvature. Since the surface
+    // reshapes every frame, vertex normals are recomputed every frame too
+    // (in updateRedSkin), not just once at build time.
+    const redSkinMat = new THREE.MeshStandardMaterial({
       color: 0xff0000,
-      transparent: true,
-      opacity: 0.15,
+      roughness: 0.5,
+      metalness: 0.1,
       side: THREE.DoubleSide,
-      depthWrite: false,
     });
     let redSkinGeo;
     let redSkinMesh;
@@ -333,6 +338,7 @@
         }
       }
       pos.needsUpdate = true;
+      redSkinGeo.computeVertexNormals();
     }
 
     function normalizeAngle(a) {

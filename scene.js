@@ -167,7 +167,7 @@ const RED_ARC_SEGMENTS = 10;
 // target opacity, so the opacity is uniform everywhere.
 const redPathMat = new LineMaterial({
   color: 0xff0000,
-  linewidth: 5,
+  linewidth: 1,
   transparent: false,
   opacity: 1,
 });
@@ -213,7 +213,7 @@ resizeRedRenderTarget();
 const ORANGE_ARC_SEGMENTS = RED_ARC_SEGMENTS;
 const orangePathMat = new LineMaterial({
   color: 0xff8800,
-  linewidth: 5,
+  linewidth: 1,
   transparent: false,
   opacity: 1,
 });

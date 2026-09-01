@@ -71,21 +71,22 @@ const params = {
   radiusFill: 0.9,
   minCircleRadius: 0.05,
   maxCircleRadius: 1,
-  crossSections: 3,
-  crossSpread: 1,
+  crossSections: 5,
+  crossSpread: 2,
 };
 
 // One checkbox per drawn line color, plus one checkbox for all cubes
 // (the small radius cubes and the big wireframe box). Declared here,
 // ahead of the first rebuildCrossSections() call below, so that call
-// can apply current visibility to the objects it creates.
+// can apply current visibility to the objects it creates. Only white
+// and red are visible by default.
 const viewParams = {
   showWhite: true,
-  showGreen: true,
-  showBlue: true,
+  showGreen: false,
+  showBlue: false,
   showRed: true,
-  showOrange: true,
-  showCubes: true,
+  showOrange: false,
+  showCubes: false,
 };
 const noise2D = createNoise2D();
 

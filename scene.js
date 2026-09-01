@@ -71,6 +71,7 @@ const params = {
   radiusFill: 0.9,
   minCircleRadius: 0.05,
   maxCircleRadius: 1,
+  crossSections: 3,
 };
 
 // One checkbox per drawn line color, plus one checkbox for all cubes
@@ -551,9 +552,10 @@ function updateSlices(count) {
 const gui = new GUI({ width: 400 });
 const mainFolder = gui.addFolder('Main');
 mainFolder.add(params, 'radius', 1, 10, 0.1).name('Radius').onChange(updateRadius);
+mainFolder.add(params, 'slices', 3, 30, 1).name('Slices').onChange(updateSlices);
+mainFolder.add(params, 'crossSections', 3, 30, 1).name('Total Cross Sections');
 
 const slicesFolder = gui.addFolder('Slices');
-slicesFolder.add(params, 'slices', 3, 30, 1).name('Slices').onChange(updateSlices);
 slicesFolder.add(params, 'noiseFrequency', 0.05, 2, 0.01).name('Frequency');
 slicesFolder.add(params, 'noiseSpeed', 0, 2, 0.01).name('Speed');
 slicesFolder.add(params, 'noiseOffset', 0, 10, 0.1).name('Offset');

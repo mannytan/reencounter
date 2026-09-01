@@ -82,6 +82,7 @@ const viewParams = {
   showGreen: true,
   showBlue: true,
   showRed: true,
+  showOrange: true,
   showCubes: true,
 };
 const noise2D = createNoise2D();
@@ -210,6 +211,50 @@ function resizeRedRenderTarget() {
 }
 resizeRedRenderTarget();
 
+// --- Orange Path ---
+// The inverse of the red path: green's inward-facing arc (inside the
+// white circle) alternating with blue's outward-facing arc (outside
+// the white circle). Same tangent points as red, opposite arc on each
+// circle. Uses the same offscreen-render-target compositing technique
+// as the red path, for the same uniform-opacity reason.
+const ORANGE_ARC_SEGMENTS = RED_ARC_SEGMENTS;
+const orangePathMat = new LineMaterial({
+  color: 0xff8800,
+  linewidth: 5,
+  transparent: false,
+  opacity: 1,
+});
+orangePathMat.resolution.set(container.clientWidth, container.clientHeight);
+let orangePathGeo;
+let orangePath;
+let orangePathFlat;
+
+const orangeOnlyScene = new THREE.Scene();
+const ORANGE_PATH_OPACITY = 0.4;
+const orangeRenderTarget = new THREE.WebGLRenderTarget(1, 1, {
+  format: THREE.RGBAFormat,
+});
+
+const compositeMatOrange = new THREE.MeshBasicMaterial({
+  map: orangeRenderTarget.texture,
+  transparent: true,
+  opacity: ORANGE_PATH_OPACITY,
+  depthTest: false,
+  depthWrite: false,
+  toneMapped: false,
+});
+const compositeQuadOrange = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMatOrange);
+compositeScene.add(compositeQuadOrange);
+
+function resizeOrangeRenderTarget() {
+  const pr = renderer.getPixelRatio();
+  orangeRenderTarget.setSize(
+    Math.max(1, Math.round(container.clientWidth * pr)),
+    Math.max(1, Math.round(container.clientHeight * pr))
+  );
+}
+resizeOrangeRenderTarget();
+
 function normalizeAngle(a) {
   const twoPi = Math.PI * 2;
   a = a % twoPi;
@@ -230,6 +275,21 @@ function rebuildRedPath(count) {
   redPath = new Line2(redPathGeo, redPathMat);
   redPath.computeLineDistances();
   redOnlyScene.add(redPath);
+}
+
+function rebuildOrangePath(count) {
+  if (orangePath) {
+    orangeOnlyScene.remove(orangePath);
+    orangePathGeo.dispose();
+  }
+  const pointsPerSlice = 2 * (ORANGE_ARC_SEGMENTS + 1);
+  const pointCount = count * pointsPerSlice + 1; // +1 to close the loop
+  orangePathFlat = new Float32Array(pointCount * 3);
+  orangePathGeo = new LineGeometry();
+  orangePathGeo.setPositions(orangePathFlat);
+  orangePath = new Line2(orangePathGeo, orangePathMat);
+  orangePath.computeLineDistances();
+  orangeOnlyScene.add(orangePath);
 }
 
 function rebuildRadiusCubes(count) {
@@ -255,6 +315,7 @@ function rebuildRadiusCubes(count) {
   }
   rebuildSliceLine(count);
   rebuildRedPath(count);
+  rebuildOrangePath(count);
   applyViewVisibility();
 }
 
@@ -264,6 +325,7 @@ function applyViewVisibility() {
   sliceLine.visible = viewParams.showBlue;
   segmentCircles.forEach((c) => (c.visible = viewParams.showBlue));
   if (redPath) redPath.visible = viewParams.showRed;
+  if (orangePath) orangePath.visible = viewParams.showOrange;
   radiusCubes.forEach((c) => (c.visible = viewParams.showCubes));
   box.visible = viewParams.showCubes;
 }
@@ -370,6 +432,16 @@ function updateRadiusCubePositions(t) {
     redPathFlat[w * 3 + 2] = z;
     w++;
   }
+  // --- Orange Path ---
+  // The inverse of red: same tangent points, but green's inward arc
+  // (toward the center) then blue's outward arc (away from the center).
+  let wOrange = 0;
+  function pushOrangePoint(x, z) {
+    orangePathFlat[wOrange * 3] = x;
+    orangePathFlat[wOrange * 3 + 1] = -1;
+    orangePathFlat[wOrange * 3 + 2] = z;
+    wOrange++;
+  }
   for (let i = 0; i < count; i++) {
     const prevSeg = (i - 1 + count) % count;
     const gcx = positions[i].x;
@@ -390,6 +462,16 @@ function updateRadiusCubePositions(t) {
       pushRedPoint(gcx + gr * Math.cos(ang), gcz + gr * Math.sin(ang));
     }
 
+    // Green's complementary arc: same tangent points, opposite side
+    // (toward the center instead of away from it).
+    const gPreferAngleOrange = normalizeAngle(gPreferAngle + Math.PI);
+    const gDiffAPOrange = normalizeAngle(gPreferAngleOrange - gAngleA);
+    const gExtentOrange = gDiffAPOrange <= gDiffAB ? gDiffAB : gDiffAB - Math.PI * 2;
+    for (let s = 0; s <= ORANGE_ARC_SEGMENTS; s++) {
+      const ang = gAngleA + (gExtentOrange * s) / ORANGE_ARC_SEGMENTS;
+      pushOrangePoint(gcx + gr * Math.cos(ang), gcz + gr * Math.sin(ang));
+    }
+
     const bcx = segMidX[i];
     const bcz = segMidZ[i];
     const br = segRadius[i];
@@ -403,6 +485,16 @@ function updateRadiusCubePositions(t) {
       const ang = bAngleA + (bExtent * s) / RED_ARC_SEGMENTS;
       pushRedPoint(bcx + br * Math.cos(ang), bcz + br * Math.sin(ang));
     }
+
+    // Blue's complementary arc: same tangent points, opposite side
+    // (away from the center instead of toward it).
+    const bPreferAngleOrange = normalizeAngle(bPreferAngle + Math.PI);
+    const bDiffAPOrange = normalizeAngle(bPreferAngleOrange - bAngleA);
+    const bExtentOrange = bDiffAPOrange <= bDiffAB ? bDiffAB : bDiffAB - Math.PI * 2;
+    for (let s = 0; s <= ORANGE_ARC_SEGMENTS; s++) {
+      const ang = bAngleA + (bExtentOrange * s) / ORANGE_ARC_SEGMENTS;
+      pushOrangePoint(bcx + br * Math.cos(ang), bcz + br * Math.sin(ang));
+    }
   }
   // Close the loop by repeating the first point.
   redPathFlat[w * 3] = redPathFlat[0];
@@ -410,6 +502,12 @@ function updateRadiusCubePositions(t) {
   redPathFlat[w * 3 + 2] = redPathFlat[2];
   redPath.geometry.setPositions(redPathFlat);
   redPath.computeLineDistances();
+
+  orangePathFlat[wOrange * 3] = orangePathFlat[0];
+  orangePathFlat[wOrange * 3 + 1] = orangePathFlat[1];
+  orangePathFlat[wOrange * 3 + 2] = orangePathFlat[2];
+  orangePath.geometry.setPositions(orangePathFlat);
+  orangePath.computeLineDistances();
 }
 
 // --- Debug Text ---
@@ -470,6 +568,7 @@ viewsFolder.add(viewParams, 'showWhite').name('White (Main Circle)').onChange(ap
 viewsFolder.add(viewParams, 'showGreen').name('Green (Slice Circles)').onChange(applyViewVisibility);
 viewsFolder.add(viewParams, 'showBlue').name('Blue (Segments)').onChange(applyViewVisibility);
 viewsFolder.add(viewParams, 'showRed').name('Red (Path)').onChange(applyViewVisibility);
+viewsFolder.add(viewParams, 'showOrange').name('Orange (Inverse Path)').onChange(applyViewVisibility);
 viewsFolder.add(viewParams, 'showCubes').name('Cubes').onChange(applyViewVisibility);
 
 // --- Lighting ---
@@ -492,6 +591,8 @@ new ResizeObserver(() => {
   renderer.setSize(w, h);
   redPathMat.resolution.set(w, h);
   resizeRedRenderTarget();
+  orangePathMat.resolution.set(w, h);
+  resizeOrangeRenderTarget();
 }).observe(container);
 
 // --- Animate ---
@@ -508,6 +609,11 @@ function animate() {
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, true, false);
   renderer.render(redOnlyScene, camera);
+
+  renderer.setRenderTarget(orangeRenderTarget);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, true, false);
+  renderer.render(orangeOnlyScene, camera);
 
   // Pass 2: draw the main scene normally.
   renderer.setRenderTarget(null);

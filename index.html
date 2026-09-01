@@ -73,6 +73,15 @@
     ground.visible = false;
     scene.add(ground);
 
+    // --- Box ---
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+
+    const edgesGeo = new THREE.EdgesGeometry(geometry);
+    const edgesMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
+    const box = new THREE.LineSegments(edgesGeo, edgesMat);
+    box.position.x = 2;
+    scene.add(box);
+
     // --- Arc ---
     const totalPoints = 64;
     const params = {
@@ -85,6 +94,18 @@
       radiusFill: 0.9,
       minCircleRadius: 0.05,
       maxCircleRadius: 1,
+    };
+
+    // One checkbox per drawn line color, plus one checkbox for all cubes
+    // (the small radius cubes and the big wireframe box). Declared here,
+    // ahead of the first rebuildRadiusCubes() call below, so that call can
+    // apply current visibility to the objects it creates.
+    const viewParams = {
+      showWhite: true,
+      showGreen: true,
+      showBlue: true,
+      showRed: true,
+      showCubes: true,
     };
     const noise2D = createNoise2D();
 
@@ -257,7 +278,19 @@
       }
       rebuildSliceLine(count);
       rebuildRedPath(count);
+      applyViewVisibility();
     }
+
+    function applyViewVisibility() {
+      arc.visible = viewParams.showWhite;
+      sliceCircles.forEach((c) => (c.visible = viewParams.showGreen));
+      sliceLine.visible = viewParams.showBlue;
+      segmentCircles.forEach((c) => (c.visible = viewParams.showBlue));
+      if (redPath) redPath.visible = viewParams.showRed;
+      radiusCubes.forEach((c) => (c.visible = viewParams.showCubes));
+      box.visible = viewParams.showCubes;
+    }
+
     rebuildRadiusCubes(params.slices);
 
     // Noise-driven slice angle: normalized simplex noise blended within each
@@ -454,14 +487,13 @@
     slicesFolder.add(params, 'minCircleRadius', 0.01, 1, 0.01).name('Min Radius');
     slicesFolder.add(params, 'maxCircleRadius', 0.1, 3, 0.01).name('Max Radius');
 
-    // --- Box ---
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-
-    const edgesGeo = new THREE.EdgesGeometry(geometry);
-    const edgesMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
-    const box = new THREE.LineSegments(edgesGeo, edgesMat);
-    box.position.x = 2;
-    scene.add(box);
+    // --- Views ---
+    const viewsFolder = gui.addFolder('Views');
+    viewsFolder.add(viewParams, 'showWhite').name('White (Main Circle)').onChange(applyViewVisibility);
+    viewsFolder.add(viewParams, 'showGreen').name('Green (Slice Circles)').onChange(applyViewVisibility);
+    viewsFolder.add(viewParams, 'showBlue').name('Blue (Segments)').onChange(applyViewVisibility);
+    viewsFolder.add(viewParams, 'showRed').name('Red (Path)').onChange(applyViewVisibility);
+    viewsFolder.add(viewParams, 'showCubes').name('Cubes').onChange(applyViewVisibility);
 
     // --- Lighting ---
     const ambient = new THREE.AmbientLight(0xffffff, 0.4);

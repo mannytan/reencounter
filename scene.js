@@ -659,8 +659,8 @@ crossesFolder.add(params, 'crossSpread', 0, 5, 0.01).name('Spread').onChange(upd
 // Per-cross-section increments: cross section c uses
 // (noiseFrequency + c * crossFrequencyStep) and (spread + c * crossSpreadStep),
 // so the shape's frequency/spread drifts as you go up the stack.
-crossesFolder.add(params, 'crossFrequencyStep', -0.5, 0.5, 0.01).name('Frequency Step');
-crossesFolder.add(params, 'crossSpreadStep', -0.5, 0.5, 0.01).name('Spread Step');
+crossesFolder.add(params, 'crossFrequencyStep', 0, 5, 0.01).name('Frequency Step');
+crossesFolder.add(params, 'crossSpreadStep', 0, 5, 0.01).name('Spread Step');
 
 // --- Views ---
 const viewsFolder = gui.addFolder('Views');

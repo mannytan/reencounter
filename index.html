@@ -29,7 +29,7 @@
     import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
     import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
     import GUI from 'lil-gui';
-    import { createNoise2D } from 'simplex-noise';
+    import { createNoise2D, createNoise3D } from 'simplex-noise';
 
     // --- Scene setup ---
     const scene = new THREE.Scene();
@@ -114,17 +114,18 @@
       showSkin: true,
     };
     const noise2D = createNoise2D();
+    const noise3D = createNoise3D();
 
     // Every drawn line (white/green/blue/red/orange) belongs to one cross
     // section, stacked vertically -- cross section 0 sits at CROSS_BASE_Y
     // (the top), each following index stacks further down by crossSpread
     // units. Cross sections can each have a different noise frequency
     // (crossFrequencyStep added per index) and angular spread (crossSpreadStep
-    // scales a 2D simplex field sampled at (slice index, cross-section
-    // index), so spread varies per slice per level -- not a straight ramp
-    // or a value that only varies by cross section), so unlike the shared
-    // white circle, every other line's geometry is computed independently
-    // per cross section, every frame.
+    // scales a 3D simplex field sampled at (slice index, cross-section
+    // index, time), so spread varies per slice per level and animates over
+    // time -- not a straight ramp or a value that only varies by cross
+    // section), so unlike the shared white circle, every other line's
+    // geometry is computed independently per cross section, every frame.
     function computeArcPoints(r) {
       const points = [];
       for (let i = 0; i < totalPoints; i++) {
@@ -524,14 +525,13 @@
       const positions = [];
       const sliceAngles = [];
       for (let i = 0; i < count; i++) {
-        // Spread is sampled from the same 2D simplex field every slice
-        // shares, indexed by v = slice index, w = cross-section index --
-        // an actual 2D field over the (slice, cross section) grid, rather
-        // than a value that only varies by cross section (which looked
-        // off for the lower cross sections).
+        // Spread is sampled from a 3D simplex field: v = slice index,
+        // w = cross-section index, t = time -- a field over the (slice,
+        // cross section) grid that also animates, rather than a value that
+        // only varies by cross section.
         const v = i;
         const w = c;
-        const spreadNoise = noise2D(v, w);
+        const spreadNoise = noise3D(v, w, t * params.noiseSpeed);
         const spreadParam = params.spread + ((spreadNoise + 1) / 2) * params.crossSpreadStep;
         const angle = computeSliceAngle(i, count, t, freq, spreadParam);
         sliceAngles.push(angle);
@@ -767,8 +767,9 @@
     crossesFolder.add(params, 'crossSpread', 0, 5, 0.01).name('Spread').onChange(updateCrossPositions);
     // Per-cross-section variation: cross section c uses
     // (noiseFrequency + c * crossFrequencyStep) for frequency (a straight
-    // ramp up the stack) and (spread + simplex(slice, c) * crossSpreadStep)
-    // for spread (a 2D field over slice and cross-section, not a ramp).
+    // ramp up the stack) and (spread + simplex3D(slice, c, time) *
+    // crossSpreadStep) for spread (an animated field over slice and
+    // cross-section, not a ramp).
     crossesFolder.add(params, 'crossFrequencyStep', 0, 5, 0.01).name('Frequency Step');
     crossesFolder.add(params, 'crossSpreadStep', 0, 5, 0.01).name('Spread Step');
 

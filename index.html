@@ -118,10 +118,12 @@
     // Every drawn line (white/green/blue/red/orange) belongs to one cross
     // section, stacked vertically -- cross section 0 sits at CROSS_BASE_Y
     // (the top), each following index stacks further down by crossSpread
-    // units. Cross sections can each have a different noise frequency and
-    // angular spread (crossFrequencyStep/crossSpreadStep added per index),
-    // so unlike the shared white circle, every other line's geometry is
-    // computed independently per cross section, every frame.
+    // units. Cross sections can each have a different noise frequency
+    // (crossFrequencyStep added per index) and angular spread (crossSpreadStep
+    // scales a simplex sample keyed by cross index, an organic per-level
+    // wobble rather than a straight ramp), so unlike the shared white circle,
+    // every other line's geometry is computed independently per cross
+    // section, every frame.
     function computeArcPoints(r) {
       const points = [];
       for (let i = 0; i < totalPoints; i++) {
@@ -437,13 +439,20 @@
       return baseAngle - margin + normalized * (2 * margin);
     }
 
+    // Cross sections sample a second, independent noise channel (offset far
+    // from the per-slice noise's input range so the two don't correlate) to
+    // drive spread per level -- an organic per-level wobble instead of a
+    // straight c * crossSpreadStep ramp.
+    const CROSS_SPREAD_NOISE_OFFSET = 1000;
+
     // Computes and applies one cross section's full geometry for this frame:
     // slice positions/radii, connecting segments, and the red/orange paths.
     function updateCrossSectionGeometry(c, t) {
       const r = params.radius;
       const count = params.slices;
       const freq = params.noiseFrequency + c * params.crossFrequencyStep;
-      const spreadParam = params.spread + c * params.crossSpreadStep;
+      const spreadNoise = noise2D(CROSS_SPREAD_NOISE_OFFSET + c, t * params.noiseSpeed);
+      const spreadParam = params.spread + ((spreadNoise + 1) / 2) * params.crossSpreadStep;
 
       const positions = [];
       const sliceAngles = [];
@@ -679,9 +688,10 @@
     // --- Crosses ---
     const crossesFolder = gui.addFolder('Crosses');
     crossesFolder.add(params, 'crossSpread', 0, 5, 0.01).name('Spread').onChange(updateCrossPositions);
-    // Per-cross-section increments: cross section c uses
-    // (noiseFrequency + c * crossFrequencyStep) and (spread + c * crossSpreadStep),
-    // so the shape's frequency/spread drifts as you go up the stack.
+    // Per-cross-section variation: cross section c uses
+    // (noiseFrequency + c * crossFrequencyStep) for frequency (a straight
+    // ramp up the stack) and (spread + simplex(c) * crossSpreadStep) for
+    // spread (an organic per-level wobble, not a ramp).
     crossesFolder.add(params, 'crossFrequencyStep', 0, 5, 0.01).name('Frequency Step');
     crossesFolder.add(params, 'crossSpreadStep', 0, 5, 0.01).name('Spread Step');
 

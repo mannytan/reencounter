@@ -11,7 +11,6 @@ const canvas = document.getElementById('threejs-canvas');
 
 // --- Scene ---
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x001233, 10, 30);
 
 const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
 camera.position.set(7.5, 6.25, 10);

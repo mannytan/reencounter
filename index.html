@@ -96,6 +96,8 @@
       maxCircleRadius: 1,
       crossSections: 5,
       crossSpread: 2,
+      crossFrequencyStep: 0,
+      crossSpreadStep: 0,
     };
 
     // One checkbox per drawn line color, plus one checkbox for all cubes
@@ -114,13 +116,12 @@
     const noise2D = createNoise2D();
 
     // Every drawn line (white/green/blue/red/orange) belongs to one cross
-    // section. Multiple cross sections are identical copies of the same
-    // animated shape, stacked vertically -- so all the position/geometry
-    // math below is computed exactly once per frame, and each cross
-    // section's meshes just share that same geometry/position data,
-    // parented under their own Group that carries the Y offset. Cross
-    // section 0 sits at CROSS_BASE_Y (the top); each following index
-    // stacks further down by crossSpread units.
+    // section, stacked vertically -- cross section 0 sits at CROSS_BASE_Y
+    // (the top), each following index stacks further down by crossSpread
+    // units. Cross sections can each have a different noise frequency and
+    // angular spread (crossFrequencyStep/crossSpreadStep added per index),
+    // so unlike the shared white circle, every other line's geometry is
+    // computed independently per cross section, every frame.
     function computeArcPoints(r) {
       const points = [];
       for (let i = 0; i < totalPoints; i++) {
@@ -131,6 +132,8 @@
       return points;
     }
 
+    // The white circle's shape depends only on radius, so it's the one
+    // piece of geometry every cross section can still share.
     const arcGeo = new THREE.BufferGeometry().setFromPoints(computeArcPoints(params.radius));
     const arcMat = new THREE.LineBasicMaterial({ color: 0xffffff });
 
@@ -156,17 +159,8 @@
 
     // --- Slice Line ---
     // Connects each slice's live position to the next, forming a closed
-    // loop that follows the noise-driven drift every frame. One shared
-    // geometry (rebuilt when slice count changes) reused by every cross
-    // section's LineSegments instance.
+    // loop that follows the noise-driven drift every frame.
     const sliceLineMat = new THREE.LineBasicMaterial({ color: 0x4f8ef7 });
-    let sliceLineGeo;
-
-    function rebuildSliceLineGeometry(count) {
-      if (sliceLineGeo) sliceLineGeo.dispose();
-      sliceLineGeo = new THREE.BufferGeometry();
-      sliceLineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 2 * 3), 3));
-    }
 
     // --- Segment Circles ---
     // One blue circle per line segment: diameter equal to the segment's
@@ -200,8 +194,6 @@
       opacity: 1,
     });
     redPathMat.resolution.set(innerWidth, innerHeight);
-    let redPathGeo;
-    let redPathFlat; // reused each frame: [x0,y0,z0, x1,y1,z1, ..., x0,y0,z0] (closed)
 
     // Offscreen scene + render target that the red path is drawn into.
     const redOnlyScene = new THREE.Scene();
@@ -248,8 +240,6 @@
       opacity: 1,
     });
     orangePathMat.resolution.set(innerWidth, innerHeight);
-    let orangePathGeo;
-    let orangePathFlat;
 
     const orangeOnlyScene = new THREE.Scene();
     const ORANGE_PATH_OPACITY = 0.4;
@@ -284,29 +274,13 @@
       return a;
     }
 
-    function rebuildRedPathGeometry(count) {
-      if (redPathGeo) redPathGeo.dispose();
-      const pointsPerSlice = 2 * (RED_ARC_SEGMENTS + 1);
-      const pointCount = count * pointsPerSlice + 1; // +1 to close the loop
-      redPathFlat = new Float32Array(pointCount * 3);
-      redPathGeo = new LineGeometry();
-      redPathGeo.setPositions(redPathFlat);
-    }
-
-    function rebuildOrangePathGeometry(count) {
-      if (orangePathGeo) orangePathGeo.dispose();
-      const pointsPerSlice = 2 * (ORANGE_ARC_SEGMENTS + 1);
-      const pointCount = count * pointsPerSlice + 1; // +1 to close the loop
-      orangePathFlat = new Float32Array(pointCount * 3);
-      orangePathGeo = new LineGeometry();
-      orangePathGeo.setPositions(orangePathFlat);
-    }
-
     // --- Cross Sections ---
-    // Per-cross-section instances (Object3D wrappers) sharing the geometry
-    // above. crossRadiusCubes/crossSliceCircles/crossSegmentCircles are
-    // arrays of arrays (one inner array of per-slice instances per cross
-    // section); everything else is one instance per cross section.
+    // Per-cross-section instances (Object3D wrappers). crossRadiusCubes/
+    // crossSliceCircles/crossSegmentCircles are arrays of arrays (one inner
+    // array of per-slice instances per cross section); everything else is
+    // one instance (and, for slice line / red / orange, one owned geometry)
+    // per cross section, since frequency/spread can differ per cross
+    // section and each therefore needs its own position data.
     let crossGroups = [];
     let crossRedGroups = [];
     let crossOrangeGroups = [];
@@ -315,8 +289,13 @@
     let crossSliceCircles = [];
     let crossSegmentCircles = [];
     let crossSliceLines = [];
+    let crossSliceLineGeos = [];
     let crossRedPaths = [];
+    let crossRedPathGeos = [];
+    let crossRedPathFlats = [];
     let crossOrangePaths = [];
+    let crossOrangePathGeos = [];
+    let crossOrangePathFlats = [];
 
     const CROSS_BASE_Y = -1;
 
@@ -334,6 +313,10 @@
       crossGroups.forEach((g) => scene.remove(g));
       crossRedGroups.forEach((g) => redOnlyScene.remove(g));
       crossOrangeGroups.forEach((g) => orangeOnlyScene.remove(g));
+      crossSliceLineGeos.forEach((g) => g.dispose());
+      crossRedPathGeos.forEach((g) => g.dispose());
+      crossOrangePathGeos.forEach((g) => g.dispose());
+
       crossGroups = [];
       crossRedGroups = [];
       crossOrangeGroups = [];
@@ -342,8 +325,13 @@
       crossSliceCircles = [];
       crossSegmentCircles = [];
       crossSliceLines = [];
+      crossSliceLineGeos = [];
       crossRedPaths = [];
+      crossRedPathGeos = [];
+      crossRedPathFlats = [];
       crossOrangePaths = [];
+      crossOrangePathGeos = [];
+      crossOrangePathFlats = [];
     }
 
     function rebuildCrossSections() {
@@ -351,9 +339,6 @@
       const crossSections = params.crossSections;
 
       clearCrossSections();
-      rebuildSliceLineGeometry(slices);
-      rebuildRedPathGeometry(slices);
-      rebuildOrangePathGeometry(slices);
 
       for (let c = 0; c < crossSections; c++) {
         const group = new THREE.Group();
@@ -386,23 +371,40 @@
         crossSliceCircles.push(circles);
         crossSegmentCircles.push(segCircles);
 
+        const sliceLineGeo = new THREE.BufferGeometry();
+        sliceLineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(slices * 2 * 3), 3));
         const sliceLine = new THREE.LineSegments(sliceLineGeo, sliceLineMat);
         group.add(sliceLine);
         crossSliceLines.push(sliceLine);
+        crossSliceLineGeos.push(sliceLineGeo);
 
+        const redPointsPerSlice = 2 * (RED_ARC_SEGMENTS + 1);
+        const redPointCount = slices * redPointsPerSlice + 1; // +1 to close the loop
+        const redPathFlat = new Float32Array(redPointCount * 3);
+        const redPathGeo = new LineGeometry();
+        redPathGeo.setPositions(redPathFlat);
         const redGroup = new THREE.Group();
         redOnlyScene.add(redGroup);
         crossRedGroups.push(redGroup);
         const redPathInstance = new Line2(redPathGeo, redPathMat);
         redGroup.add(redPathInstance);
         crossRedPaths.push(redPathInstance);
+        crossRedPathGeos.push(redPathGeo);
+        crossRedPathFlats.push(redPathFlat);
 
+        const orangePointsPerSlice = 2 * (ORANGE_ARC_SEGMENTS + 1);
+        const orangePointCount = slices * orangePointsPerSlice + 1; // +1 to close the loop
+        const orangePathFlat = new Float32Array(orangePointCount * 3);
+        const orangePathGeo = new LineGeometry();
+        orangePathGeo.setPositions(orangePathFlat);
         const orangeGroup = new THREE.Group();
         orangeOnlyScene.add(orangeGroup);
         crossOrangeGroups.push(orangeGroup);
         const orangePathInstance = new Line2(orangePathGeo, orangePathMat);
         orangeGroup.add(orangePathInstance);
         crossOrangePaths.push(orangePathInstance);
+        crossOrangePathGeos.push(orangePathGeo);
+        crossOrangePathFlats.push(orangePathFlat);
       }
 
       applyViewVisibility();
@@ -424,27 +426,35 @@
 
     // Noise-driven slice angle: normalized simplex noise blended within each
     // slice's angular slot, so cubes can drift but never cross a neighbor.
-    function computeSliceAngle(i, count, t) {
+    // freq/spreadParam are passed in (rather than read from params directly)
+    // since each cross section computes its own, offset by its index.
+    function computeSliceAngle(i, count, t, freq, spreadParam) {
       const baseAngle = (i / count) * Math.PI * 2;
       const slotWidth = (Math.PI * 2) / count;
-      const margin = slotWidth * 0.5 * params.spread;
-      const n = noise2D(i * params.noiseFrequency + params.noiseOffset, t * params.noiseSpeed);
+      const margin = slotWidth * 0.5 * spreadParam;
+      const n = noise2D(i * freq + params.noiseOffset, t * params.noiseSpeed);
       const normalized = (n + 1) / 2;
       return baseAngle - margin + normalized * (2 * margin);
     }
 
-    function updateRadiusCubePositions(t) {
+    // Computes and applies one cross section's full geometry for this frame:
+    // slice positions/radii, connecting segments, and the red/orange paths.
+    function updateCrossSectionGeometry(c, t) {
       const r = params.radius;
       const count = params.slices;
+      const freq = params.noiseFrequency + c * params.crossFrequencyStep;
+      const spreadParam = params.spread + c * params.crossSpreadStep;
 
       const positions = [];
       const sliceAngles = [];
       for (let i = 0; i < count; i++) {
-        const angle = computeSliceAngle(i, count, t);
+        const angle = computeSliceAngle(i, count, t, freq, spreadParam);
         sliceAngles.push(angle);
         positions.push({ x: r * Math.cos(angle), z: r * Math.sin(angle) });
       }
 
+      const cubes = crossRadiusCubes[c];
+      const circles = crossSliceCircles[c];
       const radii = [];
       for (let i = 0; i < count; i++) {
         const { x, z } = positions[i];
@@ -460,13 +470,9 @@
         const clamped = THREE.MathUtils.clamp(safeRadius, params.minCircleRadius, params.maxCircleRadius);
         radii.push(clamped);
 
-        // Every cross section shares this same XZ shape -- only their
-        // parent group's Y offset differs.
-        for (let c = 0; c < crossRadiusCubes.length; c++) {
-          crossRadiusCubes[c][i].position.set(x, 0, z);
-          crossSliceCircles[c][i].position.set(x, 0, z);
-          crossSliceCircles[c][i].scale.setScalar(clamped);
-        }
+        cubes[i].position.set(x, 0, z);
+        circles[i].position.set(x, 0, z);
+        circles[i].scale.setScalar(clamped);
       }
 
       // Each segment runs from one circle's edge to the next circle's edge
@@ -479,7 +485,8 @@
       const segMidZ = new Array(count);
       const segRadius = new Array(count);
 
-      const linePos = sliceLineGeo.attributes.position;
+      const segCircles = crossSegmentCircles[c];
+      const linePos = crossSliceLineGeos[c].attributes.position;
       for (let i = 0; i < count; i++) {
         const next = (i + 1) % count;
         const a = positions[i];
@@ -501,10 +508,8 @@
         const segLength = Math.hypot(endX - startX, endZ - startZ);
         const midX = (startX + endX) / 2;
         const midZ = (startZ + endZ) / 2;
-        for (let c = 0; c < crossSegmentCircles.length; c++) {
-          crossSegmentCircles[c][i].position.set(midX, 0, midZ);
-          crossSegmentCircles[c][i].scale.setScalar(segLength / 2);
-        }
+        segCircles[i].position.set(midX, 0, midZ);
+        segCircles[i].scale.setScalar(segLength / 2);
 
         segStartX[i] = startX;
         segStartZ[i] = startZ;
@@ -522,6 +527,7 @@
       // circle, taking the side away from the white circle's center),
       // then that same blue circle's inward arc (taking the side toward
       // the center).
+      const redPathFlat = crossRedPathFlats[c];
       let w = 0;
       function pushRedPoint(x, z) {
         redPathFlat[w * 3] = x;
@@ -532,6 +538,7 @@
       // --- Orange Path ---
       // The inverse of red: same tangent points, but green's inward arc
       // (toward the center) then blue's outward arc (away from the center).
+      const orangePathFlat = crossOrangePathFlats[c];
       let wOrange = 0;
       function pushOrangePoint(x, z) {
         orangePathFlat[wOrange * 3] = x;
@@ -597,14 +604,20 @@
       redPathFlat[w * 3] = redPathFlat[0];
       redPathFlat[w * 3 + 1] = redPathFlat[1];
       redPathFlat[w * 3 + 2] = redPathFlat[2];
-      redPathGeo.setPositions(redPathFlat);
-      if (crossRedPaths.length) crossRedPaths[0].computeLineDistances();
+      crossRedPathGeos[c].setPositions(redPathFlat);
+      crossRedPaths[c].computeLineDistances();
 
       orangePathFlat[wOrange * 3] = orangePathFlat[0];
       orangePathFlat[wOrange * 3 + 1] = orangePathFlat[1];
       orangePathFlat[wOrange * 3 + 2] = orangePathFlat[2];
-      orangePathGeo.setPositions(orangePathFlat);
-      if (crossOrangePaths.length) crossOrangePaths[0].computeLineDistances();
+      crossOrangePathGeos[c].setPositions(orangePathFlat);
+      crossOrangePaths[c].computeLineDistances();
+    }
+
+    function updateRadiusCubePositions(t) {
+      for (let c = 0; c < crossGroups.length; c++) {
+        updateCrossSectionGeometry(c, t);
+      }
     }
 
     // --- Debug Text ---
@@ -666,6 +679,11 @@
     // --- Crosses ---
     const crossesFolder = gui.addFolder('Crosses');
     crossesFolder.add(params, 'crossSpread', 0, 5, 0.01).name('Spread').onChange(updateCrossPositions);
+    // Per-cross-section increments: cross section c uses
+    // (noiseFrequency + c * crossFrequencyStep) and (spread + c * crossSpreadStep),
+    // so the shape's frequency/spread drifts as you go up the stack.
+    crossesFolder.add(params, 'crossFrequencyStep', -0.5, 0.5, 0.01).name('Frequency Step');
+    crossesFolder.add(params, 'crossSpreadStep', -0.5, 0.5, 0.01).name('Spread Step');
 
     // --- Views ---
     const viewsFolder = gui.addFolder('Views');
